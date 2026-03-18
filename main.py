@@ -23,35 +23,35 @@ def main() -> None:
     owner.add_pet(cat)
 
     # ------------------------------------------------------------------
-    # 3. Add tasks to Biscuit (dog)
+    # 3. Add tasks to Biscuit (dog) — intentionally out of time order
     # ------------------------------------------------------------------
-    dog.add_task(Task(
+    dog.add_task(Task(                          # added 3rd, happens at 17:00
+        name="Fetch / Playtime",
+        task_type=TaskType.ENRICHMENT,
+        duration_minutes=20,
+        priority=3,
+        preferred_time="17:00",
+    ))
+    dog.add_task(Task(                          # added 1st, happens at 07:00
         name="Morning Walk",
         task_type=TaskType.WALK,
         duration_minutes=30,
         priority=5,
         preferred_time="07:00",
     ))
-    dog.add_task(Task(
-        name="Breakfast",
-        task_type=TaskType.FEEDING,
-        duration_minutes=10,
-        priority=5,
-        preferred_time="08:00",
-    ))
-    dog.add_task(Task(
+    dog.add_task(Task(                          # added 4th, happens at 08:15
         name="Heartworm Pill",
         task_type=TaskType.MEDICATION,
         duration_minutes=5,
         priority=4,
         preferred_time="08:15",
     ))
-    dog.add_task(Task(
-        name="Fetch / Playtime",
-        task_type=TaskType.ENRICHMENT,
-        duration_minutes=20,
-        priority=3,
-        preferred_time="17:00",
+    dog.add_task(Task(                          # added 2nd, happens at 08:00
+        name="Breakfast",
+        task_type=TaskType.FEEDING,
+        duration_minutes=10,
+        priority=5,
+        preferred_time="08:00",
     ))
 
     # ------------------------------------------------------------------
@@ -117,6 +117,34 @@ def main() -> None:
     print_section("All Pending Tasks (owner view)")
     for pet, task in owner.get_all_pending_tasks():
         print(f"  {pet.name:8s}  {task}")
+
+    # ------------------------------------------------------------------
+    # 8. sort_by_time — Biscuit's tasks sorted chronologically
+    #    Tasks were added out of order above; this demonstrates that
+    #    sorting by "HH:MM" strings with a lambda restores correct order.
+    # ------------------------------------------------------------------
+    print_section("Biscuit's Tasks Sorted by Preferred Time")
+    sorted_tasks = scheduler.sort_by_time(dog.get_tasks())
+    for t in sorted_tasks:
+        time_label = t.preferred_time if t.preferred_time else "(no time)"
+        print(f"  {time_label}  {t.name}")
+
+    # ------------------------------------------------------------------
+    # 9. filter_tasks — show only pending tasks for Biscuit
+    #    Mark one task complete first to make the filter visible.
+    # ------------------------------------------------------------------
+    dog.get_tasks()[0].mark_complete()   # mark first-inserted task as done
+
+    print_section("filter_tasks: Biscuit — pending only")
+    pending = scheduler.filter_tasks(dog.get_tasks(), pending_only=True)
+    for t in pending:
+        print(f"  {t}")
+
+    print_section("filter_tasks: tasks for 'Mochi' only (pet-name filter)")
+    for pet in owner.get_pets():
+        matched = scheduler.filter_tasks(pet.get_tasks(), pet_name="Mochi", pet=pet)
+        for t in matched:
+            print(f"  {pet.name:8s}  {t}")
 
 
 if __name__ == "__main__":

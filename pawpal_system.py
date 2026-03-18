@@ -149,6 +149,21 @@ class Pet:
     def get_tasks_by_type(self, task_type: TaskType) -> list[Task]:
         return [t for t in self._tasks if t.task_type == task_type]
 
+    def get_tasks_filtered(
+        self,
+        task_type: Optional[TaskType] = None,
+        min_priority: int = 1,
+        pending_only: bool = False,
+    ) -> list[Task]:
+        """Return tasks matching all filters, sorted by priority desc then duration asc."""
+        tasks = self._tasks
+        if pending_only:
+            tasks = [t for t in tasks if not t.is_completed]
+        if task_type is not None:
+            tasks = [t for t in tasks if t.task_type == task_type]
+        tasks = [t for t in tasks if t.priority >= min_priority]
+        return sorted(tasks, key=lambda t: (-t.priority, t.duration_minutes))
+
     # --- display -----------------------------------------------------------
 
     def __str__(self) -> str:
@@ -221,6 +236,7 @@ class DailyPlan:
     scheduled_tasks: list[ScheduledTask] = field(default_factory=list)
     total_time_minutes: int = 0
     reasoning: str = ""
+    conflicts: list[str] = field(default_factory=list)
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def add_task(self, scheduled: ScheduledTask) -> None:
@@ -268,6 +284,57 @@ class Scheduler:
         """Sort tasks by priority desc, then duration asc (greedy-friendly)."""
         return sorted(tasks, key=lambda t: (-t.priority, t.duration_minutes))
 
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Sort tasks by preferred_time (HH:MM) ascending; tasks without a time go last."""
+        return sorted(
+            tasks,
+            key=lambda t: t.preferred_time if t.preferred_time else "99:99",
+        )
+
+    def filter_tasks(
+        self,
+        tasks: list[Task],
+        pending_only: bool = False,
+        pet_name: str | None = None,
+        pet: "Pet | None" = None,
+    ) -> list[Task]:
+        """Filter tasks by completion status and/or owning pet.
+
+        Args:
+            tasks:       The task list to filter.
+            pending_only: When True, keep only incomplete tasks.
+            pet_name:    When given, keep only tasks belonging to *pet*.
+            pet:         The Pet whose name is checked against *pet_name*.
+                         Ignored when pet_name is None.
+        """
+        result = tasks
+        if pending_only:
+            result = [t for t in result if not t.is_completed]
+        if pet_name is not None and pet is not None:
+            if pet.name.lower() != pet_name.lower():
+                result = []
+        return result
+
+    def detect_time_conflicts(self, tasks: list[Task]) -> list[str]:
+        """Return messages for any tasks whose preferred_time windows overlap."""
+        timed = [
+            (t,
+             datetime.strptime(t.preferred_time, "%H:%M"),
+             datetime.strptime(t.preferred_time, "%H:%M") + timedelta(minutes=t.duration_minutes))
+            for t in tasks if t.preferred_time
+        ]
+        conflicts: list[str] = []
+        for i in range(len(timed)):
+            for j in range(i + 1, len(timed)):
+                t_a, start_a, end_a = timed[i]
+                t_b, start_b, end_b = timed[j]
+                if start_a < end_b and start_b < end_a:
+                    conflicts.append(
+                        f"'{t_a.name}' ({t_a.preferred_time}, {t_a.duration_minutes} min) "
+                        f"overlaps with '{t_b.name}' ({t_b.preferred_time}, {t_b.duration_minutes} min)."
+                    )
+        return conflicts
+
     def fit_tasks(self, tasks: list[Task], time_limit: int) -> list[Task]:
         """Greedily select tasks that fit within time_limit minutes."""
         selected: list[Task] = []
@@ -285,6 +352,7 @@ class Scheduler:
         chosen = self.fit_tasks(prioritized, available_time)
 
         plan = DailyPlan(pet_id=pet.id, date=date.today())
+        plan.conflicts = self.detect_time_conflicts(chosen)
 
         cursor = datetime.strptime(self.START_HOUR, "%H:%M")
         for task in chosen:
@@ -293,6 +361,10 @@ class Scheduler:
                 start_dt = datetime.strptime(task.preferred_time, "%H:%M")
                 # if preferred_time is already past the cursor, push cursor forward
                 if start_dt < cursor:
+                    plan.conflicts.append(
+                        f"'{task.name}' preferred {task.preferred_time} "
+                        f"but was rescheduled to {cursor.strftime('%H:%M')} due to earlier tasks."
+                    )
                     start_dt = cursor
             else:
                 start_dt = cursor

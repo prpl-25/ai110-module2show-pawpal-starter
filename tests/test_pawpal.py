@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from pawpal_system import Pet, Task, TaskType
+from pawpal_system import Pet, Task, TaskType, Scheduler, Owner
 
 
 def test_mark_complete_changes_status():
