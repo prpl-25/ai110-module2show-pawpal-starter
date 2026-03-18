@@ -44,6 +44,7 @@ pip install -r requirements.txt
 
 
 ## Testing PawPal+
-test command: python -m pytest
+To run the pytest tests I wrote you have to run the  test command: python -m pytest
 The tests cover adding a task, sorting by time, any overlapping conflicts
-Confidence level in the system's reliability is 3/5 stars based on my tests. Several real-world behaviors are untested and the ownder logic is not tested at all - for example adding a pet, removing a pet, getting tasks, etc.
+## Confidence level
+ I would give 3/5 stars based on my tests. Several real-world behaviors are untested and the ownder logic is not tested at all - for example adding a pet, removing a pet, getting tasks, etc.
