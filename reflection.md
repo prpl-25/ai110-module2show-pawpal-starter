@@ -7,6 +7,16 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+##Three core actions:
+- Add a pet, delete a pet, update pet info
+- Schedule walks or feeding
+- Access medical and med info
+
+##Classes to include:
+- Pet Class
+- Medical Record Class
+- Daily plan class
+- Feeding Schedule Class
 **b. Design changes**
 
 - Did your design change during implementation?
