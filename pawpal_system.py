@@ -39,6 +39,16 @@ class Task:
     def mark_incomplete(self) -> None:
         self.is_completed = False
 
+    def recur(self) -> "Task":
+        """Return a fresh copy of this task reset to incomplete (for daily recurrence)."""
+        return Task(
+            name=self.name,
+            task_type=self.task_type,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            preferred_time=self.preferred_time,
+        )
+
     def __str__(self) -> str:
         status = "✓" if self.is_completed else "○"
         time_hint = f" @ {self.preferred_time}" if self.preferred_time else ""
